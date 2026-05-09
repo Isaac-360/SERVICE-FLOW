@@ -11,6 +11,7 @@ export default defineConfig({
     open: true,
   },
   build: {
+    sourcemap: false,
     // Split vendor chunks for better long-term caching
     rollupOptions: {
       output: {

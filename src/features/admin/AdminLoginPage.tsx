@@ -42,9 +42,6 @@ export default function AdminLoginPage() {
         const isEmergencyAdmin = authData.user.email === 'akuinaisaac710@gmail.com';
 
         if (!isEmergencyAdmin && (profileError || profile?.role !== 'admin')) {
-          console.log('DEBUG - Auth User ID:', authData.user.id);
-          console.log('DEBUG - Profile Data:', profile);
-          console.log('DEBUG - Profile Error:', profileError);
           await supabase.auth.signOut();
           toast.error('ACCESS DENIED: Administrative Credentials Required');
           return;

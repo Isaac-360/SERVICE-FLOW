@@ -258,8 +258,6 @@ export const emailInvoice = async (
   fromEmail?: string
 ): Promise<void> => {
   // This would be called via backend API
-  console.log(`Sending invoice ${invoice.id} to ${toEmail}`);
-  
   // In production, this would call your backend email service
   // return await apiClient.post('/emails/send-invoice', {
   //   invoiceId: invoice.id,
