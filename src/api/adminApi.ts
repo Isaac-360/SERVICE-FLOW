@@ -224,12 +224,16 @@ export const uploadServiceImage = async (file: File): Promise<{ url: string }> =
 
     const compressedFile = await imageCompression(file, options);
     const fileExt = 'webp';
-    const fileName = `${Math.random()}.${fileExt}`;
+    const fileName = `${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
     const filePath = `service-images/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('assets')
-      .upload(filePath, compressedFile);
+      .upload(filePath, compressedFile, {
+        contentType: 'image/webp',
+        cacheControl: '3600',
+        upsert: false,
+      });
 
     if (uploadError) throw uploadError;
 

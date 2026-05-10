@@ -1,6 +1,57 @@
 import { Service, Category } from '../types/service.types';
 import { supabase } from '../lib/supabaseClient';
 
+const ASSETS_BUCKET = 'assets';
+const ASSET_PUBLIC_PREFIX = `/storage/v1/object/public/${ASSETS_BUCKET}/`;
+const ASSET_SIGNED_PREFIX = `/storage/v1/object/sign/${ASSETS_BUCKET}/`;
+
+const extractAssetPath = (value?: string): string | null => {
+  if (!value) return null;
+
+  if (!value.startsWith('http')) {
+    return value.replace(/^\/+/, '');
+  }
+
+  try {
+    const url = new URL(value);
+    const decodedPath = decodeURIComponent(url.pathname);
+
+    if (decodedPath.includes(ASSET_PUBLIC_PREFIX)) {
+      return decodedPath.split(ASSET_PUBLIC_PREFIX)[1] || null;
+    }
+
+    if (decodedPath.includes(ASSET_SIGNED_PREFIX)) {
+      return (decodedPath.split(ASSET_SIGNED_PREFIX)[1] || '').split('/sign/')[0] || null;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
+const resolveAssetUrl = async (value?: string): Promise<string> => {
+  if (!value) return '';
+
+  const looksLikeExternalUrl = value.startsWith('http') && !value.includes('/storage/v1/object/');
+  if (looksLikeExternalUrl) return value;
+
+  const filePath = extractAssetPath(value);
+  if (!filePath) return value;
+
+  // Signed URL works for both private and public buckets.
+  const { data: signedData, error: signedError } = await supabase.storage
+    .from(ASSETS_BUCKET)
+    .createSignedUrl(filePath, 60 * 60 * 24 * 7);
+
+  if (!signedError && signedData?.signedUrl) {
+    return signedData.signedUrl;
+  }
+
+  const { data: publicData } = supabase.storage.from(ASSETS_BUCKET).getPublicUrl(filePath);
+  return publicData?.publicUrl || value;
+};
+
 export const getServices = async (category?: Category, search?: string): Promise<Service[]> => {
   try {
     let query = supabase
@@ -22,23 +73,29 @@ export const getServices = async (category?: Category, search?: string): Promise
 
     if (!data) return [];
 
-    return data.map(s => ({
-      id: s.id,
-      title: s.title,
-      description: s.description,
-      price: s.base_price,
-      category: s.category,
-      rating: s.rating,
-      reviewCount: s.review_count,
-      image: s.image,
-      businessId: s.business_id,
-      businessName: s.business_name,
-      gallery: s.gallery,
-      videoUrl: s.video_url,
-      packages: s.packages,
-      briefingQuestions: s.briefing_questions,
-      location: Array.isArray(s.locations) && s.locations.length > 0 ? s.locations[0]?.city : 'Global'
-    }));
+    const mapped = await Promise.all(
+      data.map(async (s) => ({
+        id: s.id,
+        title: s.title,
+        description: s.description,
+        price: s.base_price,
+        category: s.category,
+        rating: s.rating,
+        reviewCount: s.review_count,
+        image: await resolveAssetUrl(s.image),
+        businessId: s.business_id,
+        businessName: s.business_name,
+        gallery: Array.isArray(s.gallery)
+          ? await Promise.all(s.gallery.map((img: string) => resolveAssetUrl(img)))
+          : s.gallery,
+        videoUrl: s.video_url,
+        packages: s.packages,
+        briefingQuestions: s.briefing_questions,
+        location: Array.isArray(s.locations) && s.locations.length > 0 ? s.locations[0]?.city : 'Global'
+      }))
+    );
+
+    return mapped;
   } catch (error) {
     console.error('Error fetching marketplace services:', error);
     return [];
@@ -71,10 +128,12 @@ export const getServiceById = async (id: string): Promise<Service | undefined> =
       category: data.category,
       rating: data.rating,
       reviewCount: data.review_count,
-      image: data.image,
+      image: await resolveAssetUrl(data.image),
       businessId: data.business_id,
       businessName: data.business_name,
-      gallery: data.gallery,
+      gallery: Array.isArray(data.gallery)
+        ? await Promise.all(data.gallery.map((img: string) => resolveAssetUrl(img)))
+        : data.gallery,
       videoUrl: data.video_url,
       packages: data.packages,
       briefingQuestions: data.briefing_questions,

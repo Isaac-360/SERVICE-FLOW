@@ -1,5 +1,6 @@
 // Supabase Edge Function: notify
 // This function is triggered by a database webhook on the 'notifications' table
+// @ts-nocheck
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -33,7 +34,7 @@ serve(async (req) => {
     // 3. Dispatch SMS via Hubtel (Example)
     // You can swap this with Twilio or any other provider
     console.log(`--- DISPATCHING SMS TO ${profile.contact} ---`)
-    
+
     /* 
     const hubtelUrl = `https://smsc.hubtel.com/v1/messages/send?clientid=${HUBTEL_CLIENT_ID}&clientsecret=${HUBTEL_CLIENT_SECRET}&from=${HUBTEL_SENDER_ID}&to=${profile.contact}&content=${encodeURIComponent(record.message)}`
     
@@ -47,9 +48,9 @@ serve(async (req) => {
       .update({ status: 'sent' })
       .eq('id', record.id)
 
-    return new Response(JSON.stringify({ success: true }), { 
+    return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' },
-      status: 200 
+      status: 200
     })
 
   } catch (error) {
